@@ -5,7 +5,7 @@ import { join } from "node:path";
 // GitHub Pages serves project sites from https://<user>.github.io/<repo>/,
 // so production builds need the repo name as the base path. Override with
 // BASE_PATH (e.g. BASE_PATH=/ for a custom domain or user/organisation site).
-const REPO_BASE = "/dkb-ply-converter-kit/";
+const REPO_BASE = "/dkb-ply-network-converter-kit/";
 
 // Where the dev server writes conversion logs. Ignored by git.
 const TEMP_LOG_DIR = join(process.cwd(), "temp", "logs");

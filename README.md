@@ -265,7 +265,7 @@ renaming the repo needs no config change; `REPO_BASE` in `vite.config.js` is onl
 fallback for a local `npm run build`. For a custom domain or a user/organisation site set
 `BASE_PATH=/` when building.
 
-Live site: <https://dkbozkurt.github.io/dkb-ply-converter-kit/>
+Live site: <https://dkbozkurt.github.io/dkb-ply-network-converter-kit/>
 
 ## Notes
 
