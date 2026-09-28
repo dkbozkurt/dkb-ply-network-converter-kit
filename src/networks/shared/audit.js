@@ -41,6 +41,9 @@ function byteLength(content) {
  * @param {number} [o.maxFiles]         cap for the number of files in the package
  * @param {boolean} [o.forbidMraidScript] flag a <script src="mraid.js"> reference
  * @param {boolean} [o.allowWindowOpen]   don't flag window.open() (MRAID fallback)
+ * @param {boolean} [o.forbidConsoleOverride] flag global console.* reassignment
+ * @param {string[]} [o.allowScripts]     exact <script src> tags the network requires
+ *                                        (its own SDK) — not counted as external references
  */
 export function createPackageAudit({
   label,
@@ -49,6 +52,7 @@ export function createPackageAudit({
   forbidMraidScript = false,
   allowWindowOpen = false,
   forbidConsoleOverride = false,
+  allowScripts = [],
 }) {
   const rules = [...EXTERNAL_REF_RULES];
   if (!allowWindowOpen) rules.push(WINDOW_OPEN_RULE);
@@ -56,7 +60,9 @@ export function createPackageAudit({
   if (forbidConsoleOverride) rules.push(CONSOLE_OVERRIDE_RULE);
 
   return function audit({ html, files, entryName = "index.html", log }) {
-    const texts = [[entryName, html]];
+    let entry = html;
+    for (const tag of allowScripts) entry = entry.split(tag).join("");
+    const texts = [[entryName, entry]];
     for (const [path, content] of Object.entries(files)) {
       if (typeof content === "string") texts.push([path, content]);
     }

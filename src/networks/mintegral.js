@@ -9,9 +9,17 @@
 //                     window.install()     CTA — the ONLY allowed way to the store
 //                     window.gameRetry()   optional, on replay
 //
-//   Package           <Name>.zip → <Name>/<Name>.html, names limited to
-//                     [A-Za-z0-9_], ≤ 5 MB, everything but JS/HTML base64-inlined,
-//                     no dynamic requests, no console override, no auto-redirect.
+//   Package           "Zip with resources": <Name>.zip → <Name>/<Name>.html plus
+//                     the playable's resources as separate files in that folder
+//                     (the guideline's own example ships libs/, resource/, *.js
+//                     next to the html). Zip, folder and html share one name
+//                     made of [A-Za-z0-9_]; zip < 5 MB; the html must open
+//                     locally; "All files besides JS and HTML should be
+//                     processed into base64" — so the startup scripts, jsons,
+//                     blobs and the (still base-122 encoded) images each go to
+//                     their own assets/*.js rather than to loose .png/.mp3
+//                     files. No dynamic requests, no console override, no
+//                     auto-redirect.
 
 import { createPackageAudit, MB } from "./shared/audit.js";
 
@@ -51,15 +59,15 @@ export default {
 
   target: {
     supported: true,
-    format: "Named-folder zip",
+    format: "<Name>/<Name>.html + resources",
     platformId: "mintegral",
     zipSuffix: "Mintegral",
     packaging: {
       entryName: "index.html", // replaced by layoutResult → <Name>/<Name>.html
-      externalizeAssets: false,
-      externalizeImages: false,
+      externalizeAssets: true, // assets/scripts.js, jsons.js, blobs.js
+      externalizeImages: "script", // assets/images.js — encoded, not loose files
       safeName: true,
-      namedFolder: true,
+      folder: "named",
     },
     validation:
       "Drop the Mintegral zip into the Mindworks Playable Test Tool (playturbo.com/review) and play to the end: gameReady, install and gameEnd must all turn green.",

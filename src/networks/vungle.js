@@ -1,6 +1,6 @@
-// Vungle (Liftoff Monetize) target.
-// Uses the Liftoff Adaptive Creative layer. Luna's network table lists Vungle
-// as "Single HTML or Zip with resources, 5 MB", so the output is one
+// Vungle (Liftoff Monetize / Direct) target.
+// Uses the Adaptive Creative postMessage layer. Luna's network table lists
+// Vungle as "Single HTML or Zip with resources, 5 MB", so the output is one
 // self-contained ad.html with everything inlined, delivered inside the zip.
 import { patchAdaptiveCreative, ADAPTIVE_CREATIVE_VALIDATION } from "./shared/adaptiveCreative.js";
 

@@ -1,8 +1,8 @@
-// Liftoff "Adaptive Creative" integration layer.
-//
-// Shared by Vungle (Liftoff Monetize) and Liftoff (Liftoff Direct): both host
-// the playable as a child `ad.html` inside a parent index.html and talk to it
-// via postMessage. Spec (support.vungle.com → Develop Adaptive Creative):
+// Liftoff Monetize (Vungle) "Adaptive Creative" integration layer, used by
+// the Vungle target. The host loads the playable as a child `ad.html` inside
+// a parent index.html and talks to it via postMessage. (The Liftoff target is
+// Liftoff Accelerate, which is plain MRAID — see liftoff.js.)
+// Spec (support.vungle.com → Develop Adaptive Creative):
 //
 //   CTA         parent.postMessage("download", "*")
 //   Game ended  parent.postMessage("complete", "*")   — never together with download
@@ -40,7 +40,7 @@ const CTA_AND_COMPLETE =
   "})()" +
   "</script>";
 
-/** Target `patch()` implementation shared by every Adaptive Creative network. */
+/** Target `patch()` for Adaptive Creative hosts. */
 export function patchAdaptiveCreative(html, { log, helpers }) {
   html = helpers.injectBefore(html, "</body>", LIFECYCLE + CTA_AND_COMPLETE, { last: true });
   log.step("Wired lifecycle: luna:start on build, ad-event-pause/resume → luna pause/resume");
@@ -52,4 +52,4 @@ export function patchAdaptiveCreative(html, { log, helpers }) {
 }
 
 export const ADAPTIVE_CREATIVE_VALIDATION =
-  "Test Vungle / Liftoff output with Liftoff's Creative Verifier before launch; the entry file is ad.html.";
+  "Test Vungle output with Liftoff's Creative Verifier before launch; the entry file is ad.html (the Verifier itself asks for index.html — rename it there if it complains).";

@@ -5,7 +5,7 @@
 //   • zip ≤ 5 MB with index.html AND config.json at the first directory
 //     level — no wrapping folder, and the Ads API says no directory structure
 //     at all, so everything is inlined into index.html (2 files total)
-//   • config.json carries the orientation: { "orientation": 1 } (portrait only)
+//   • config.json carries the orientation, 1 = portrait only (key name unstated)
 //   • portrait, must not require mraid.js, no JS redirects, no external http
 //     requests, no dynamic asset loading
 //   • CTA → ScPlayableAd.onCTAClick()  (Snap's container injects the object)
@@ -15,7 +15,9 @@
 
 import { createPackageAudit, MB } from "./shared/audit.js";
 
-const CONFIG_JSON = JSON.stringify({ orientation: 1 });
+// Snap's article names only "the orientation field", in wording copied from
+// TikTok's spec, whose key is playable_orientation — both keys are written.
+const CONFIG_JSON = JSON.stringify({ orientation: 1, playable_orientation: 1 });
 
 const LIFECYCLE =
   '<script>window.addEventListener("luna:build",(function(){window.pi&&window.pi.logLoaded(),' +

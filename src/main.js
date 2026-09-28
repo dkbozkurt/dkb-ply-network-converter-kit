@@ -254,7 +254,7 @@ convertBtn.addEventListener("click", async () => {
           if (!used.has(target.id)) used.set(target.id, new Set());
           const fileName = uniqueName(outputNameFor(src.name, target), used.get(target.id));
           const result = layoutResult(raw, fileName);
-          if (result !== raw) scope.step(`Laid out as ${fileName.replace(/\.zip$/i, "")}/ (folder and html named after the zip)`);
+          if (result !== raw) scope.step(`Laid out as ${result.entryName} (everything inside one folder named after the zip)`);
           const blob = await packageResult(result);
           scope.step(`${/\.zip$/i.test(fileName) ? "Zipped" : "Saved"} → ${fileName} (${kb(blob.size)})`);
           jobs.push({ name: src.name, fileName, result, blob, log: scope, target });
@@ -308,7 +308,7 @@ function renderJob(job) {
   const rows = [[isRaw ? job.fileName : result.entryName || "index.html", byteLength(result.html)]];
   const bundled = [];
   for (const [p, c] of Object.entries(result.files)) {
-    if (/^assets\/assets\/bundles\//.test(p)) bundled.push([p, byteLength(c)]);
+    if (/(?:^|\/)assets\/assets\/bundles\//.test(p)) bundled.push([p, byteLength(c)]);
     else rows.push([p, byteLength(c)]);
   }
   if (bundled.length) {

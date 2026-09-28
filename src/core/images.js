@@ -14,6 +14,7 @@ import { htmlUnescape } from "./html.js";
 
 const IMG_TAG_RE = /<img\b([^>]*?)\bdata-src122="([^"]*)"([^>]*)>/g;
 const ID_RE = /\bid\s*=\s*"([^"]+)"/;
+const ESCAPES = { "\\": "\\\\", '"': '\\"', "\n": "\\n", "\r": "\\r", "\u2028": "\\u2028", "\u2029": "\\u2029" };
 
 export function extractAndRewriteImages(html, log) {
   const assets = {};
@@ -50,4 +51,39 @@ export function extractAndRewriteImages(html, log) {
     }
   }
   return { html: next, assets };
+}
+
+/**
+ * Move every inline data-src122 <img> tag, still encoded, into one external
+ * script that re-inserts them at the same spot. For networks that take
+ * separate files but want every non-JS asset kept encoded inside JS
+ * (Mintegral: "All files besides JS and HTML should be processed into
+ * base64"). Loose image files would also break opening the html from disk:
+ * over file:// sibling images are cross-origin and WebGL refuses them.
+ *
+ * The replacement is a *synchronous* <script src> at the first tag's
+ * position, so the tags are back in the document before Luna's inline
+ * decoder (querySelectorAll("[data-src122]")) runs right after them.
+ */
+export function extractImagesToScript(html, log, path = "assets/images.js") {
+  const tags = [];
+  const next = html.replace(IMG_TAG_RE, function (tag) {
+    tags.push(tag);
+    return tags.length === 1 ? `<script src="${path}"></script>` : "";
+  });
+
+  if (!tags.length) {
+    if (log) log.warn("No data-src122 image assets found in source");
+    return { html, files: {} };
+  }
+  // Not JSON.stringify: it turns every control byte of the base-122 payload
+  // into a 6-byte \u00XX escape and roughly doubles the file. Raw control
+  // characters are legal in a JS string literal; base-122 never emits
+  // \0 \n \r " & \, so only the tag markup around it needs escaping.
+  const literal = tags.join("").replace(/[\\"\n\r\u2028\u2029]/g, (c) => ESCAPES[c]);
+  const script = `document.currentScript.insertAdjacentHTML("beforebegin","${literal}");`;
+  if (log) {
+    log.step(`Moved ${tags.length} encoded image asset${tags.length === 1 ? "" : "s"} into ${path} (still base-122, re-inserted before Luna's image decoder)`);
+  }
+  return { html: next, files: { [path]: script } };
 }

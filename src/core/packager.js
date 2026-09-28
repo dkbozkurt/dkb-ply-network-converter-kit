@@ -48,18 +48,21 @@ export async function packageResult(result) {
 
 /**
  * Apply the target's zip layout to a conversion result, given the final zip
- * name. `packaging.namedFolder` (Mintegral) wraps everything in a folder
- * named after the zip and renames the entry html to match:
- *   Foo_Mintegral.zip → Foo_Mintegral/Foo_Mintegral.html
+ * name. `packaging.folder` wraps everything in one folder named after the zip:
+ *   "named" (Mintegral) — the entry html is renamed to match the folder
+ *                         Foo_Mintegral.zip → Foo_Mintegral/Foo_Mintegral.html
+ *   "wrap"  (Liftoff)   — the entry html keeps its name
+ *                         Foo_Liftoff.zip → Foo_Liftoff/index.html
  * Returns a new result; the original is left untouched.
  */
 export function layoutResult(result, zipName) {
   const packaging = (result.target && result.target.target.packaging) || {};
-  if (!packaging.namedFolder) return result;
+  if (!packaging.folder) return result;
   const base = zipName.replace(/\.zip$/i, "");
   const files = {};
   for (const [path, content] of Object.entries(result.files)) files[`${base}/${path}`] = content;
-  return { ...result, entryName: `${base}/${base}.html`, files };
+  const entry = packaging.folder === "named" ? `${base}.html` : result.entryName || "index.html";
+  return { ...result, entryName: `${base}/${entry}`, files };
 }
 
 /** Zip a single conversion result (entry html + files). */

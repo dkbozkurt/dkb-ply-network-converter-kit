@@ -13,7 +13,7 @@
 //      with a window.open() fallback for browser previews (never reached
 //      inside an MRAID container)
 //
-// Networks built on MRAID (AppLovin, Unity, AdColony, Aarki, Adikteev,
+// Networks built on MRAID (AppLovin, Unity, Liftoff, AdColony, Aarki, Adikteev,
 // BigaBid, InMobi, YouAppi, Appreciate, Remerge, …) differ only in
 // packaging and size caps, which each definition sets via `mraidTarget()`.
 
@@ -56,8 +56,25 @@ const CTA =
   'window.addEventListener("luna:build",(function(){Bridge.ready((function(){' +
   "Luna.Unity.Playable.InstallFullGame=function(n,i){window.PlayableAdapter.exit(n,i)}}))}))</script>";
 
+// How recent a tap / click / key press must be for a store open to count as
+// user-initiated when `blockAutoRedirect` is on.
+export const GESTURE_WINDOW_MS = 1000;
+
+// Opt-in for hosts that reject store opens without a user action (InMobi:
+// "Auto-redirects to app stores without user action" are prohibited;
+// Liftoff: the click may only follow a user interaction). Luna scenes can
+// open the store on a timer (_openStoreAfterEndCard, _openStoreAfterSeconds);
+// those calls have no input event in front of them and are dropped, while a
+// real tap on the CTA / end card goes through.
+const GESTURE_GUARD =
+  "<script>!function(){var A=window.PlayableAdapter,x=A.exit,t=0;" +
+  "function g(){t=Date.now()}" +
+  '["pointerdown","pointerup","touchstart","touchend","mousedown","mouseup","click","keydown"].forEach((function(n){window.addEventListener(n,g,!0)}));' +
+  `A.exit=function(n,i){if(Date.now()-t>${GESTURE_WINDOW_MS})return void console.warn("[playable] store open without a user action dropped (auto-redirect)");x.call(A,n,i)}` +
+  "}()</script>";
+
 /** Target `patch()` shared by every MRAID network. */
-export function patchMraid(html, { log, helpers }) {
+export function patchMraid(html, { log, helpers }, { blockAutoRedirect = false } = {}) {
   if (/<script\b[^>]*\bsrc\s*=\s*["'][^"']*mraid\.js["']/i.test(html)) {
     log.info("mraid.js script tag already present");
   } else {
@@ -69,9 +86,12 @@ export function patchMraid(html, { log, helpers }) {
     }
     log.step('Declared <script src="mraid.js"> at the top of <head> (host SDK serves it)');
   }
-  html = helpers.injectBefore(html, "</body>", LIFECYCLE + CTA, { last: true });
+  html = helpers.injectBefore(html, "</body>", LIFECYCLE + CTA + (blockAutoRedirect ? GESTURE_GUARD : ""), { last: true });
   log.step("Wired lifecycle: mraid ready → isViewable/getState → luna:start / pause / resume, audioVolumeChange → mute/unmute");
   log.step("Wired CTA → mraid.open(store url from $environment.packageConfig) via PlayableAdapter.exit()");
+  if (blockAutoRedirect) {
+    log.step(`Blocked auto-redirects: a store open with no tap / click in the last ${GESTURE_WINDOW_MS} ms is dropped`);
+  }
   const links = (html.match(/iosLink:"([^"]*)",androidLink:"([^"]*)"/) || []).slice(1);
   if (links.length) {
     const missing = ["iOS", "Android"].filter((_, i) => !links[i]);
@@ -82,7 +102,7 @@ export function patchMraid(html, { log, helpers }) {
 }
 
 export const MRAID_VALIDATION =
-  "MRAID outputs (Aarki, AdColony, Adikteev, Appreciate, BigaBid, InMobi, Remerge, YouAppi, generic MRAID) are standard MRAID creatives — verify them in an MRAID test container such as AppLovin's Playable Preview (p.applov.in/playablePreview) and confirm the CTA opens the store via mraid.open(). Check each network's own size cap in the audit line.";
+  "MRAID outputs (Aarki, AdColony, Adikteev, Appreciate, BigaBid, InMobi, Liftoff, Remerge, YouAppi, generic MRAID) are standard MRAID creatives — verify them in an MRAID test container such as AppLovin's Playable Preview (p.applov.in/playablePreview) and confirm the CTA opens the store via mraid.open(). Check each network's own size cap in the audit line.";
 
 /**
  * Build a `target` block for an MRAID network.
@@ -93,17 +113,21 @@ export const MRAID_VALIDATION =
  * @param {"single"|"zip"} [o.shape="single"]  single inline HTML or index.html + resources
  * @param {number} [o.maxMB]       size cap used by the audit
  * @param {string} [o.validation]  extra guidance shown under the result
+ * @param {"wrap"} [o.folder]      zip shape only: put everything inside one folder named after the zip
+ * @param {boolean} [o.blockAutoRedirect]  drop store opens that no user action led to
  */
-export function mraidTarget({ name, platformId, zipSuffix, shape = "single", maxMB, validation }) {
+export function mraidTarget({ name, platformId, zipSuffix, shape = "single", maxMB, validation, folder, blockAutoRedirect = false }) {
   const single = shape === "single";
+  const packaging = { entryName: "index.html", externalizeAssets: !single, externalizeImages: !single };
+  if (!single && folder) packaging.folder = folder;
   return {
     supported: true,
     format: single ? "Single index.html" : "index.html + resources",
     platformId,
     zipSuffix,
-    packaging: { entryName: "index.html", externalizeAssets: !single, externalizeImages: !single },
+    packaging,
     validation: validation || MRAID_VALIDATION,
-    patch: patchMraid,
+    patch: (html, ctx) => patchMraid(html, ctx, { blockAutoRedirect }),
     audit: createPackageAudit({ label: name, maxBytes: maxMB ? maxMB * MB : undefined, allowWindowOpen: true }),
   };
 }

@@ -33,10 +33,12 @@ export default {
     packaging: {
       entryName: "index.html",  // name of the entry html inside the zip
       externalizeAssets: true,  // move inline scripts/jsons/blobs to assets/*.js
-      externalizeImages: true,  // decode data-src122 images to assets/<id>
-      raw: false,               // true => deliver the html itself, no zip (AppLovin, Unity)
+      externalizeImages: true,  // true => decode data-src122 images to assets/<id>;
+                                // "script" => keep them encoded in assets/images.js (Mintegral)
+      raw: false,               // true => deliver the html itself, no zip (AppLovin, Unity, Moloco)
       safeName: false,          // true => output name limited to [A-Za-z0-9_] (Mintegral)
-      namedFolder: false,       // true => <Name>.zip holds <Name>/<Name>.html (Mintegral)
+      folder: undefined,        // "named" => <Name>.zip holds <Name>/<Name>.html + files (Mintegral)
+                                // "wrap"  => <Name>.zip holds <Name>/index.html + files (Liftoff)
     },
     patch(html, ctx) { /* inject SDK, CTA, lifecycle — return new html */ },
     audit(pkg) { /* optional: check the final package, return false to flag warnings */ },
@@ -53,23 +55,28 @@ the entry html (Snapchat puts its `config.json` there).
 
 ### Shared layers
 
-- `shared/mraid.js` — `mraidTarget({ name, platformId, zipSuffix, shape, maxMB, validation })`
+- `shared/mraid.js` — `mraidTarget({ name, platformId, zipSuffix, shape, maxMB, validation, folder, blockAutoRedirect })`
   returns a complete `target` block for any MRAID host (Luna's own MRAID watcher + CTA,
   `mraid.js` declaration, size audit). `shape` is `"single"` (inline `index.html`) or
-  `"zip"` (`index.html` + externalized resources). See `aarki.js` (one-liner) and
-  `appreciate.js` (zip shape).
-- `shared/adaptiveCreative.js` — Liftoff / Vungle postMessage layer.
-- `shared/audit.js` — `createPackageAudit({ label, maxBytes, maxFiles, forbidMraidScript, allowWindowOpen, forbidConsoleOverride })`
+  `"zip"` (`index.html` + externalized resources); `folder: "wrap"` puts the zip's
+  content inside one folder; `blockAutoRedirect` drops store opens without a recent
+  user tap. See `aarki.js` (one-liner), `appreciate.js` (zip shape) and `liftoff.js`
+  (wrapped zip, no auto-redirects).
+- `shared/adaptiveCreative.js` — Liftoff Monetize (Vungle) postMessage layer.
+- `shared/audit.js` — `createPackageAudit({ label, maxBytes, maxFiles, forbidMraidScript, allowWindowOpen, forbidConsoleOverride, allowScripts })`
   for networks that don't use `mraidTarget` but still need the external-reference / size
-  checks (Meta, Snapchat, Mintegral).
+  checks (Meta, Snapchat, Mintegral, Moloco, TikTok, Tencent). `allowScripts` lists the
+  exact SDK `<script src>` tags a network requires, which are then not flagged.
 
 ### Packaging shapes
 
 `packageResult` / `layoutResult` in `src/core/packager.js` read the `packaging` flags:
 the default is a DEFLATE zip of `entryName` + `files`; `raw` returns the html as the
-download itself; `namedFolder` rewrites the layout to `<Name>/<Name>.html` using the
-final (possibly `safeName`-sanitised) output name. `mintegral.js` uses all three
-Mintegral-specific flags, `applovin.js` / `unity.js` use `raw` + `passthrough`.
+download itself; `folder` moves everything into one folder named after the final
+(possibly `safeName`-sanitised) output name — `"named"` also renames the html to
+`<Name>.html`. `mintegral.js` uses `safeName` + `folder: "named"` + `externalizeImages: "script"`,
+`liftoff.js` uses `folder: "wrap"`, `applovin.js` / `unity.js` use `raw` + `passthrough`,
+`moloco.js` uses `raw`.
 
 The engine also strips Luna's inert dev-tooling blocks (remote debugging, spector.js,
 startup probe) before any target layer runs — see `DEV_TOOLING_RULES` in

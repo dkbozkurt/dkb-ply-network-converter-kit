@@ -12,14 +12,15 @@
 //   3. neutral   — reset analytics config, retarget $environment, externalize
 //                  startup assets, install the PlayableAdapter seam
 //   4. target    — let the target definition graft on its own layer
-//   5. package   — (optional) decode inline images to loose files
+//   5. package   — (optional) decode inline images to loose files, or move
+//                  them (still encoded) into an external script
 //   6. audit     — (optional) target-defined checks over the final package,
 //                  e.g. Meta's "no external calls" rule; warnings only
 //
 // Output is { html, files } ready to be zipped by the packager.
 
 import { scanScripts, applyEdits, injectBefore, readTargetPlatform, findScriptSyntaxErrors } from "./html.js";
-import { extractAndRewriteImages } from "./images.js";
+import { extractAndRewriteImages, extractImagesToScript } from "./images.js";
 import { SOURCE_NETWORKS, networkForPlatform } from "../networks/index.js";
 
 export const PLAYABLE_ADAPTER_GLOBAL = "PlayableAdapter";
@@ -234,7 +235,11 @@ export function convertPlayable(html, { target, log, source: forcedSource } = {}
 
   // 5 · package
   log.section("package");
-  if (packaging.externalizeImages) {
+  if (packaging.externalizeImages === "script") {
+    const extracted = extractImagesToScript(html, log);
+    html = extracted.html;
+    Object.assign(files, extracted.files);
+  } else if (packaging.externalizeImages) {
     const extracted = extractAndRewriteImages(html, log);
     html = extracted.html;
     for (const [id, data] of Object.entries(extracted.assets)) files[`assets/${id}`] = data;
